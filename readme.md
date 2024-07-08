@@ -27,12 +27,7 @@ Claude Engineer is an advanced interactive command-line interface (CLI) that har
    cd claude-engineer
    ```
 
-2. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-3. Set up your API keys:
+2. Set up your API keys:
    - Add your Anthropic and Tavily API keys at the start of the file:
      ```python
      client = Anthropic(api_key="YOUR API KEY")
@@ -41,10 +36,21 @@ Claude Engineer is an advanced interactive command-line interface (CLI) that har
 
 ## 🚀 Usage
 
-Run the main script to start the Claude Engineer interface:
-
+On Windows run the `run.bat` script to automatically install all dependencies and then start the Claude Engineer interface:
 ```
-python main.py
+run.bat
+```
+
+On Linux or Mac run `run.sh` instead.
+
+Make the script executable by running:
+```
+chmod +x run.sh
+```
+
+Run the script using:
+```
+./run.sh
 ```
 
 Once started, you can interact with Claude Engineer by typing your queries or commands. Some example interactions:
