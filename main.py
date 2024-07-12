@@ -15,6 +15,12 @@ from rich.markdown import Markdown
 
 console = Console()
 
+from dotenv import load_dotenv
+import chardet
+
+# try to load the .env file. If it doesn't exist, the code will continue without it
+load_dotenv()
+
 # Add these constants at the top of the file
 CONTINUATION_EXIT_PHRASE = "AUTOMODE_COMPLETE"
 MAX_CONTINUATION_ITERATIONS = 25
@@ -24,10 +30,18 @@ MAINMODEL = "claude-3-5-sonnet-20240620"
 TOOLCHECKERMODEL = "claude-3-5-sonnet-20240620"
 
 # Initialize the Anthropic client
-client = Anthropic(api_key="YOUR KEY")
+if "ANTHROPIC_API_KEY" in os.environ:
+    api_key = os.environ["ANTHROPIC_API_KEY"]
+    client = Anthropic(api_key=api_key)
+else:
+    client = Anthropic(api_key="YOUR KEY")
 
 # Initialize the Tavily client
-tavily = TavilyClient(api_key="YOUR KEY")
+if "TAVILY_API_KEY" in os.environ:
+    api_key = os.environ["TAVILY_API_KEY"]
+    tavily = TavilyClient(api_key=api_key)
+else:
+    tavily = TavilyClient(api_key="YOUR KEY")
 
 # Set up the conversation memory
 conversation_history = []
@@ -204,7 +218,7 @@ def edit_and_apply(path, new_content):
     try:
         with open(path, 'r') as file:
             original_content = file.read()
-        
+
         if new_content != original_content:
             diff_result = generate_and_apply_diff(original_content, new_content, path)
             return f"Changes applied to {path}:\n{diff_result}"
@@ -215,8 +229,11 @@ def edit_and_apply(path, new_content):
 
 def read_file(path):
     try:
-        with open(path, 'r') as f:
-            content = f.read()
+        with open(path, 'rb') as f:
+            raw_data = f.read()
+        detected = chardet.detect(raw_data)
+        encoding = detected['encoding']
+        content = raw_data.decode(encoding)
         return content
     except Exception as e:
         return f"Error reading file: {str(e)}"
@@ -224,6 +241,36 @@ def read_file(path):
 def list_files(path="."):
     try:
         files = os.listdir(path)
+        return "\n".join(files)
+    except Exception as e:
+        return f"Error listing files: {str(e)}"
+
+def list_files_recursively(path=".", depth=0, max_depth=5, exclude_dirs=['dist', 'node_modules', 'build', 'target', 'debug', 'cache'], exclude_file_extensions=[], max_tokens=19999):
+    try:
+        files = []
+        anthropic = Anthropic()
+        total_tokens = 0
+
+        for root, dirs, filenames in os.walk(path):
+            current_depth = root[len(path):].count(os.sep)
+
+            if current_depth > max_depth:
+                del dirs[:]
+                continue
+
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
+
+            for filename in filenames:
+                if not any(filename.endswith(ext) for ext in exclude_file_extensions):
+                    file_path = os.path.relpath(os.path.join(root, filename), path)
+                    file_tokens = anthropic.count_tokens(file_path + "\n")
+
+                    if total_tokens + file_tokens > max_tokens:
+                        return "\n".join(files) + "\n...\n(truncated)"
+
+                    files.append(file_path)
+                    total_tokens += file_tokens
+
         return "\n".join(files)
     except Exception as e:
         return f"Error listing files: {str(e)}"
@@ -332,6 +379,19 @@ tools = [
         }
     },
     {
+        "name": "list_files_recursively",
+        "description": "List all files and directories in the specified folder and its subdirectories. Use this when you need to see the contents of a directory and its subdirectories.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "The path of the folder to list recursively (default: current directory)"
+                }
+            }
+        }
+    },
+    {
         "name": "tavily_search",
         "description": "Perform a web search using Tavily API to get up-to-date information or additional context. Use this when you need current information or feel a search could provide a better answer.",
         "input_schema": {
@@ -360,6 +420,8 @@ def execute_tool(tool_name, tool_input):
             return read_file(tool_input["path"])
         elif tool_name == "list_files":
             return list_files(tool_input.get("path", "."))
+        elif tool_name == "list_files_recursively":
+            return list_files_recursively(tool_input.get("path", "."))
         elif tool_name == "tavily_search":
             return tavily_search(tool_input["query"])
         else:
@@ -482,7 +544,7 @@ def chat_with_claude(user_input, image_path=None, current_iteration=None, max_it
         except Exception as e:
             result = f"Error executing tool: {str(e)}"
             console.print(Panel(result, title="Tool Execution Error", style="bold red"))
-        
+
         current_conversation.append({
             "role": "assistant",
             "content": [
