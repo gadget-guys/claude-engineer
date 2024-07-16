@@ -3,4 +3,5 @@ python-dotenv
 tavily-python
 Pillow
 rich
+python-dotenv
 aiohttp

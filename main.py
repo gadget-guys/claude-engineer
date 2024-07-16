@@ -13,46 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.markdown import Markdown
-import asyncio
-import aiohttp
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-import datetime
-import venv
-import subprocess
-import sys
-import signal
-
-def setup_virtual_environment():
-    venv_name = "code_execution_env"
-    venv_path = os.path.join(os.getcwd(), venv_name)
-    if not os.path.exists(venv_path):
-        venv.create(venv_path, with_pip=True)
-    
-    # Activate the virtual environment
-    if sys.platform == "win32":
-        activate_script = os.path.join(venv_path, "Scripts", "activate.bat")
-    else:
-        activate_script = os.path.join(venv_path, "bin", "activate")
-    
-    return venv_path, activate_script
-
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Initialize the Anthropic client
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-if not anthropic_api_key:
-    raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
-client = Anthropic(api_key=anthropic_api_key)
-
-# Initialize the Tavily client
-tavily_api_key = os.getenv("TAVILY_API_KEY")
-if not tavily_api_key:
-    raise ValueError("TAVILY_API_KEY not found in environment variables")
-tavily = TavilyClient(api_key=tavily_api_key)
-
-console = Console()
+from dotenv import load_dotenv
 
 # Add these constants at the top of the file
 CONTINUATION_EXIT_PHRASE = "AUTOMODE_COMPLETE"
@@ -81,7 +42,34 @@ code_execution_tokens = {'input': 0, 'output': 0}
 # I set to 1M tokens, so you can see the progress towards 1M tokens
 MAX_CONTEXT_TOKENS = 1000000  # 1M tokens for context window
 
+# Add your API keys here (or use a .env file)
+ANTHROPIC_API_KEY = None
+TAVILY_API_KEY = None
 
+# Load environment variables from .env file if exists (OPTIONAL)
+if os.path.exists(".env"):
+    load_dotenv(".env")
+
+    # Show which environment variables are loaded
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+    if ANTHROPIC_API_KEY is not None or TAVILY_API_KEY is not None:
+        print("Environment variables loaded from .env file.")
+
+        # List the keys that are loaded
+        if ANTHROPIC_API_KEY is not None:
+            print("ANTHROPIC_API_KEY loaded.")
+        if TAVILY_API_KEY is not None:
+            print("TAVILY_API_KEY loaded.")
+
+console = Console()
+
+# Initialize the Anthropic client
+client = Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# Initialize the Tavily client
+tavily = TavilyClient(api_key=TAVILY_API_KEY)
 
 # Set up the conversation memory
 conversation_history = []
